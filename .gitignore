@@ -1,3 +1,45 @@
+# Node.js
+node_modules/
+
+# Vite build
+dist/
+dist-ssr/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Supabase local state
+supabase/.temp/
+supabase/.branches/
+.supabase/
+
+# macOS metadata
+.DS_Store
+._*
+.AppleDouble
+.Spotlight-V100
+.Trashes
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Editor settings
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Temporary files
+*.swp
+*.swo
+
 # Logs
 logs
 *.log
@@ -5,6 +47,18 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Editor settings
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Temporary files
+*.swp
+*.swo
 
 # Dependencies
 node_modules
@@ -21,3 +75,6 @@ dist
 .DS_Store
 .idea
 .vscode
+
+# Private database audit exports and backups
+backups/

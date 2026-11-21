@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 
 export default function AuthForm() {
-  const { signInWithKakao, authError } = useAuth()
+  const { signInWithKakao, authError, isConfigured } = useAuth()
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -24,7 +24,7 @@ export default function AuthForm() {
           <h1 id="auth-title">Wave Log</h1>
           <p>나의 파도를 기록하다</p>
         </div>
-        <button className="kakao-button" type="button" disabled={submitting} onClick={handleLogin}>
+        <button className="kakao-button" type="button" disabled={submitting || !isConfigured} onClick={handleLogin}>
           {submitting ? '카카오로 이동 중...' : '카카오로 시작하기'}
         </button>
         {error || authError ? <p className="form-message error" role="alert">{error || authError}</p> : null}
