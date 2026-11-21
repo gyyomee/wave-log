@@ -2,6 +2,7 @@ import { authenticatedClient, execute, pickFields, result, timestamp, DataAccess
 
 const fields = ['spot_id', 'started_at', 'ended_at', 'board_name', 'board_length_ft', 'overall_rating', 'wave_rating', 'performance_rating', 'crowd_level', 'notes']
 const withSpot = '*, spot:surf_spots!surf_sessions_owned_spot_fkey(*)'
+const savedConditions = 'conditions:surf_session_conditions(wave_height,wave_period,swell_direction,wind_speed,wind_direction,water_temperature,air_temperature,manual_fields,api_values,condition_intervals,condition_hourly,context,wetsuit,tide_cycle_label,tide_convention,tide_events)'
 
 function values(input) {
   const record = pickFields(input, fields)
@@ -11,7 +12,7 @@ function values(input) {
   return record
 }
 
-export function listSessions({ from, to, includeSpot = true, limit = 100, offset = 0 } = {}) {
+export function listSessions({ from, to, includeSpot = true, includeConditions = false, limit = 100, offset = 0 } = {}) {
   return execute(async () => {
     const start = from === undefined ? null : timestamp(from)
     const end = to === undefined ? null : timestamp(to)
@@ -20,7 +21,8 @@ export function listSessions({ from, to, includeSpot = true, limit = 100, offset
       throw new DataAccessError('Invalid pagination.', 'INVALID_INPUT')
     }
     const { client, userId } = await authenticatedClient()
-    let query = client.from('surf_sessions').select(includeSpot ? withSpot : '*')
+    const selection = (includeSpot ? withSpot : '*') + (includeConditions ? ', '+savedConditions : '')
+    let query = client.from('surf_sessions').select(selection)
       .eq('user_id', userId).order('started_at', { ascending: false }).order('id', { ascending: false })
     if (start) query = query.gte('started_at', start)
     if (end) query = query.lt('started_at', end)

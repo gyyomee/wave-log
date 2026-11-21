@@ -77,7 +77,7 @@ export default function SessionForm({ session, spots, boards = [], onSpot, onSav
         <datalist id="board-suggestions">{boards.map(board => <option key={board} value={board} />)}</datalist>
         <label>서핑 슈트<input list="wetsuit-suggestions" value={conditions.state.wetsuit || ''} onChange={e => conditions.setState(old => ({ ...old, wetsuit: e.target.value }))} /></label>
         <datalist id="wetsuit-suggestions">{conditions.suits.map(s => <option key={s} value={s} />)}</datalist>
-        <div className="form-grid">{Object.entries(ratings).map(([key, label]) => <RatingInput key={key} label={label} value={form[key]} intent={conditions.intent[key]} onConfirm={() => conditions.setIntent(old => ({ ...old, [key]: 'confirmed' }))} crowd={key === 'crowd_level'} onChange={value => { setForm(f => ({ ...f, [key]: value })); conditions.setIntent(old => ({ ...old, [key]: 'modified' })) }} />)}</div>
+        <div className="form-grid">{Object.entries(ratings).map(([key, label]) => <RatingInput key={key} label={label} value={form[key]} crowd={key === 'crowd_level'} onChange={value => { setForm(f => ({ ...f, [key]: value })); conditions.setIntent(old => ({ ...old, [key]: 'modified' })) }} />)}</div>
         <ConditionsEditor data={conditions} />
         <label>메모<textarea name="notes" rows={5} value={form.notes} onChange={change} /></label>
       </fieldset>

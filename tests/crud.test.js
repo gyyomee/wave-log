@@ -38,6 +38,8 @@ test('service CRUD workflow and query filters (mocked Supabase, no database)', a
   assert.ok(calls.at(-1).steps.some(step => JSON.stringify(step) === JSON.stringify(['gte', 'started_at', '2026-10-31T15:00:00.000Z'])))
   assert.ok(calls.at(-1).steps.some(step => JSON.stringify(step) === JSON.stringify(['lt', 'started_at', '2026-11-01T15:00:00.000Z'])))
   assert.ok(calls.at(-1).steps.some(([method, field, options]) => method === 'order' && field === 'started_at' && options.ascending === false))
+  await sessions.listSessions({includeConditions:true})
+  assert.ok(calls.at(-1).steps.some(([method,value])=>method==='select' && value.includes('conditions:surf_session_conditions(') && value.includes('wave_height,wave_period')))
   response = { ...session, notes: 'Updated' }
   assert.equal((await sessions.updateSession(session.id, { notes: 'Updated' })).notes, 'Updated')
   assert.deepEqual(calls.at(-1).steps[0], ['update', { notes: 'Updated' }])

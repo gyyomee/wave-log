@@ -5,7 +5,8 @@ export function forecastRange(start, end) {
   const a = Date.parse(start), b = Date.parse(end)
   if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a || b-a > 31*24*hour) return []
   const first = Math.floor((a+offset)/step)*step-offset
-  const last = Math.ceil((b+offset)/step)*step-offset
+  const previous = Math.floor((b+offset)/step)*step-offset
+  const last = b-previous<=90*60000 ? previous : previous+step
   const rows = []
   for (let time=first; time<=last; time+=step) {
     const forecast_at = new Date(time).toISOString()

@@ -5,13 +5,16 @@ import { parseTime, formatTime, wheelKey } from '../src/journal/timePicker.js'
 import { seoulParts } from '../src/journal/dates.js'
 import { changeCondition } from '../src/journal/conditionModel.js'
 const at=(time,date='2026-10-01')=>date+'T'+time+':00+09:00'
-test('forecast includes previous/equal start and next/equal end clock boundaries',()=>{
+test('forecast floors start and uses the 90-minute end boundary rule',()=>{
   for(const [a,b,expected] of [
     ['08:00','14:00',['06:00','09:00','12:00','15:00']],
     ['09:00','12:00',['09:00','12:00']],
-    ['10:00','13:00',['09:00','12:00','15:00']],
-    ['00:00','00:01',['00:00','03:00']],
-    ['08:59','09:01',['06:00','09:00','12:00']],
+    ['10:00','13:00',['09:00','12:00']],
+    ['00:00','00:01',['00:00']],
+    ['08:59','09:01',['06:00','09:00']],
+    ['18:00','18:20',['18:00']],
+    ['18:00','19:30',['18:00']],
+    ['18:00','19:31',['18:00','21:00']],
   ]) assert.deepEqual(forecastRange(at(a),at(b)).map(r=>seoulParts(r.forecast_at).time),expected)
   assert.deepEqual(forecastRange(at('12:00'),at('09:00')),[])
   assert.deepEqual(forecastRange('invalid',at('09:00')),[])

@@ -23,6 +23,28 @@
 .calendar .has-sessions { background: #e0eee5; border-color: #77a98b; }
 .calendar button[aria-current="date"] { text-decoration: underline; text-underline-offset: 4px; }
 .calendar button[aria-pressed="true"] small { color: white; }
+.calendar-scroll { overflow-x: auto; margin-bottom: 24px; }
+.calendar-scroll .calendar { min-width: 0; margin-bottom: 0; }
+.calendar-scroll .calendar button { height: 58px; align-items: center; justify-content: center; gap: 6px; }
+.calendar-scroll .calendar button[aria-current="date"] { text-decoration: none; }
+.calendar-scroll .calendar button[aria-current="date"] .calendar-day { font-weight: 700; }
+.calendar-day { display: flex; justify-content: space-between; gap: 4px; }
+.calendar-dot { width: 6px; height: 6px; border-radius: 50%; }
+.calendar-dot.registered { background: currentColor; }
+.wave-summary { display: grid; gap: 3px; line-height: 1.4; }
+.saved-wave { margin-top: 28px; border-top: 1px solid #bdccc5; padding-top: 12px; }
+.saved-wave-scroll { max-width: 100%; overflow-x: auto; }
+.saved-wave-table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.saved-wave-table th, .saved-wave-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #d5dfdb; line-height: 1.5; }
+.saved-wave-table th { font-weight: 600; }
+.saved-wave-table.timed { min-width: 780px; }
+.saved-wave-table.timed th:first-child { min-width: 150px; white-space: normal; }
+.saved-wave-table.timed td { white-space: nowrap; }
+.saved-direction { display: inline-flex; align-items: center; gap: 6px; }
+.direction-arrow { display: inline-block; width: 18px; text-align: center; font-size: 18px; }
+.saved-extras { margin-top: 24px; }
+.condition-note, .saved-time { font-size: 13px; color: #62716b; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .session-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid #d5dfdb; }
 .session-list li { border-bottom: 1px solid #d5dfdb; }
 .session-list li button { width: 100%; border: 0; border-radius: 0; background: transparent; display: grid; grid-template-columns: 150px 1fr auto; text-align: left; gap: 16px; align-items: center; padding: 18px 8px; }
@@ -75,6 +97,21 @@
 .journal-form input, .journal-form select, .journal-form textarea { width: 100%; min-width: 0; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .actions { margin-top: 24px; }
+.journal-detail-actions { margin-top: 0; flex-wrap: wrap; }
+.condition-edit-scroll { overflow: auto; max-width: 100%; }
+.condition-edit-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; }
+.condition-edit-table th, .condition-edit-table td { width: 240px; padding: 8px; border-bottom: 1px solid #d5dfdb; vertical-align: top; text-align: left; }
+.condition-edit-table th:first-child { position: sticky; left: 0; z-index: 1; width: 100px; background: #f3f7f4; font-size: 14px; overflow-wrap: anywhere; }
+.condition-edit-table input { box-sizing: border-box; min-height: 44px; }
+.condition-input-row { display: grid; grid-template-columns: minmax(170px, 1fr) 44px; gap: 8px; align-items: start; }
+.condition-input-row > input, .condition-input-row > .direction-picker { min-width: 0; width: 100%; }
+.condition-edit-table .condition-reset { width: 44px; height: 44px; padding: 0; margin: 0; display: grid; place-items: center; }
+.condition-edit-table .condition-reset:disabled { cursor: default; }
+.direction-picker > button { width: 100%; text-align: left; font-size: 14px; }
+.direction-options { max-height: 220px; overflow-y: auto; border: 1px solid #bdccc5; touch-action: pan-y; overscroll-behavior: contain; user-select: none; }
+.direction-options [role="option"] { padding: 10px 6px; min-height: 44px; box-sizing: border-box; cursor: pointer; font-size: 14px; }
+.direction-options [aria-selected="true"] { background: #e0eee5; }
+.direction-options:focus-visible { outline: 2px solid #23654e; outline-offset: -2px; }
 .journal-shell .danger { color: #a42b27; border-color: #d2aaa7; }
 .details { display: grid; grid-template-columns: 140px 1fr; gap: 16px; }
 .detail-pair { display: contents; }
