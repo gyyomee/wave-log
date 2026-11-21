@@ -343,7 +343,7 @@ Set the Supabase values in `.env.local`:
 
 ```sh
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-publishable-or-anon-key
+VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 ```
 
 Run locally:
@@ -363,9 +363,9 @@ npm run build
 Create a Supabase project, then copy these values from the project dashboard:
 
 - `VITE_SUPABASE_URL`: Project URL from the Connect dialog or Integrations > Data API
-- `VITE_SUPABASE_ANON_KEY`: publishable key from the Connect dialog or Settings > API Keys
+- `VITE_SUPABASE_PUBLISHABLE_KEY`: publishable key from the Connect dialog or Settings > API Keys
 
-Use only the publishable client key, or the legacy anon key if that is what your project has. Do not use a secret key or legacy service-role key in this frontend.
+Use only the publishable client key. Do not use a secret key or legacy service-role key in this frontend.
 
 Enable Kakao-only authentication (existing configuration can be kept if it matches):
 
@@ -388,7 +388,7 @@ Configure auth URLs:
 For GitHub Pages deployment, add repository secrets in GitHub:
 
 - `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
 
 The GitHub Actions workflow passes these values to `npm run build` so Vite can include them in the deployed static app.
 
@@ -410,10 +410,10 @@ Reference: [Supabase Kakao setup](https://supabase.com/docs/guides/auth/social-s
 
 ## Missing Login Configuration
 
-The client also accepts `VITE_SUPABASE_PUBLISHABLE_KEY` as an alternative to `VITE_SUPABASE_ANON_KEY`. If both are set, `VITE_SUPABASE_ANON_KEY` takes precedence. GitHub Actions accepts either repository secret and supplies the selected value to the build as `VITE_SUPABASE_ANON_KEY`. Use only one key variable locally to avoid ambiguity.
+The client and GitHub Actions both use `VITE_SUPABASE_PUBLISHABLE_KEY`. Configure the repository secret with this exact name; `.env.local` is not available to GitHub Actions. The old `VITE_SUPABASE_ANON_KEY` variable is no longer read.
 
 The message "현재 로그인 서비스를 사용할 수 없습니다." means the Supabase client was not created because the URL or client key is missing. It is not a session-expiration error. Vite does not load `.env.example` automatically, and GitHub Actions secrets are not downloaded to your local machine.
 
-Create `.env.local` only if absent, using the example's exact variable names: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Fill them with your own project URL and publishable/anon key locally. Do not use a service-role key. Restart the Vite server after changing the file, then reload the page.
+Create `.env.local` only if absent, using the example's exact variable names: `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Fill them with your own project URL and publishable key locally. Do not use a service-role key. Restart the Vite server after changing the file, then reload the page.
 
 For GitHub Pages, set the two repository Actions secrets and run the deployment again. Vite embeds these values at build time; refreshing an old deployment cannot update them. The workflow now refuses to deploy when either value is empty. A local build can still succeed without credentials, but authentication will be unavailable.
