@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { getConditions, listWetsuits } from '../services/sessionConditions'
+import { getConditions } from '../services/sessionConditions'
 import { listMarine } from '../services/marineSamples'
 import { fetchConditionSnapshot } from '../services/conditionApi'
-import { contextKey, initialIntent, wetsuitNames, mergePrefill } from './conditionModel'
+import { contextKey, initialIntent, mergePrefill } from './conditionModel'
 import { ratings } from './dates'
 import { forecastRange, forecastRequest, forecastState } from './forecast'
 import { sessionValues } from './conditionPersistence'
@@ -14,7 +14,7 @@ export function useConditions(session, spot, start, end) {
   const [loadError, setLoadError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [suits, setSuits] = useState(wetsuitNames([]))
+  const [originalWetsuit,setOriginalWetsuit]=useState(null)
   const [retry, setRetry] = useState(0)
   const [loadRetry, setLoadRetry] = useState(0)
   const marine = useRef([])
@@ -31,6 +31,7 @@ export function useConditions(session, spot, start, end) {
         if (!active) return
         if (saved) {
           setState(saved)
+          setOriginalWetsuit(saved.wetsuit)
           setIntent({ ...initialIntent(session, Object.keys(ratings)), ...saved.rating_intent })
         }
         if (session) {
@@ -40,7 +41,6 @@ export function useConditions(session, spot, start, end) {
       } catch(e) { if (active) setLoadError('기존 환경값을 불러오지 못했습니다: ' + e.message) }
     }
     load()
-    listWetsuits().then(rows => { if (active) setSuits(wetsuitNames(rows.map(r => r.wetsuit))) }).catch(() => {})
     return () => { active = false }
   }, [session?.id, loadRetry])
   useEffect(() => {
@@ -65,5 +65,5 @@ export function useConditions(session, spot, start, end) {
     }, 600)
     return () => { active = false; clearTimeout(timer) }
   }, [ctx, ready, retry])
-  return { state: forecastState(state,ranges,ctx), setState, ranges, start, end, intent, setIntent, ready, loadError, message, loading, suits, ctx, retry: () => setRetry(n => n+1), reload: () => setLoadRetry(n => n+1) }
+  return { state: forecastState(state,ranges,ctx), setState, ranges, start, end, intent, setIntent, ready, loadError, message, loading, originalWetsuit, ctx, retry: () => setRetry(n => n+1), reload: () => setLoadRetry(n => n+1) }
 }

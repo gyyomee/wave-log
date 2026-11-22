@@ -8,10 +8,13 @@ import { initialRatings, initialIntent } from '../src/journal/conditionModel.js'
 import { ratingValue } from '../src/journal/suggestions.js'
 import { journalSaver } from '../src/services/journalSave.js'
 
-test('top navigation keeps calendar/account and the calendar still offers creation',()=>{
+test('top navigation keeps calendar/My Page and preserves creation and nested statistics access',()=>{
   const source=readFileSync(new URL('../src/journal/Journal.jsx',import.meta.url),'utf8')
   const nav=source.match(/<nav[\s\S]*?<\/nav>/)[0]
-  assert.match(nav,/\['journal','캘린더'\],\['account','내 계정'\]/)
+  assert.match(nav,/\['journal','캘린더'\],\['account','마이페이지'\]/)
+  assert.doesNotMatch(nav,/\['statistics','통계'\]/)
+  assert.match(source,/onStatistics={\(\)=>navigate\('statistics'\)}/)
+  assert.match(source,/onSettings={\(\)=>navigate\('preferences'\)}/)
   assert.doesNotMatch(nav,/기록 추가|\['add'/)
   assert.match(source,/onClick={\(\) => navigate\('add'\)}>기록 추가/)
 })
@@ -42,7 +45,7 @@ test('reset controls have accessible names, tooltips and disabled states beside 
     let state=forecastState({condition_hourly:[{fields:['wave_height'],metadata:{context:ctx},rows:[{sampled_at:ranges[0].forecast_at,wave_height:0}]}]},ranges,ctx)
     state=editTimestamp(state,state._forecast[0],'wave_height',2,ctx)
     const html=renderToStaticMarkup(React.createElement(Editor,{data:{state,setState(){},ranges,ctx,start,retry(){}}}))
-    const table=html.split('</table>')[0]
+    const table=html.split('<table')[1].split('</table>')[0]
     assert.equal((table.match(/class="condition-input-row"/g)||[]).length,7)
     assert.equal((table.match(/class="condition-reset"/g)||[]).length,7)
     assert.equal((table.match(/disabled=""/g)||[]).length,6)

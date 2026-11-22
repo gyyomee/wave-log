@@ -1,5 +1,6 @@
 import { fetchMarine, coordinates, requestFor } from './marineApi.js'
 import { conditionFields, contextKey } from '../journal/conditionModel.js'
+import { apiWind } from '../lib/windUnits.js'
 
 export function representative(rows, start, end) {
   const a = Date.parse(start), b = Date.parse(end), midpoint = (a + b) / 2
@@ -24,6 +25,14 @@ export function parseConditions(body, mappings) {
     const row = { sampled_at: new Date(seconds * 1000).toISOString() }
     for (const [api, field] of Object.entries(mappings)) {
       const value = body.hourly[api]?.[i], spec = conditionFields[field]
+      if(field==='wind_speed') {
+        const result=apiWind(value,{unit:body.hourly_units?.[api] || 'unknown'})
+        if(result.unit==='unknown') throw new Error('풍속 API 단위 확인 불가')
+        row[field]=result.value
+        row.wind_speed_source_value=value ?? null
+        row.wind_speed_source_unit=body.hourly_units?.[api] || null
+        continue
+      }
       if (body.hourly_units?.[api] && body.hourly_units[api] !== spec.unit) throw new Error('API 단위 불일치')
       row[field] = typeof value === 'number' && Number.isFinite(value) && value >= spec.min && value <= spec.max ? value : null
     }
@@ -54,6 +63,7 @@ export function fetchConditionSnapshot(session, spot, { fetcher = fetch, now = D
     const raw = {}
     async function rawJson(name, requestUrl) {
       const body = await json(requestUrl, fetcher)
+      if(name==='weather' && !['kn','kts'].includes(body.hourly_units?.wind_speed_10m)) throw new Error('풍속 API 응답 단위가 요청한 knots와 다릅니다.')
       raw[name] = body
       return body
     }
@@ -74,7 +84,7 @@ export function fetchConditionSnapshot(session, spot, { fetcher = fetch, now = D
         if (first < Date.parse('2022-01-01T00:00:00Z') || last > now + 9 * 86400000) return []
         return parseConditions(await rawJson('sst', url('https://marine-api.open-meteo.com/v1/marine', { ...dates, hourly: 'sea_surface_temperature', cell_selection: 'sea' })), { sea_surface_temperature: 'water_temperature' })
       } },
-      { fields: ['wind_speed','wind_direction','air_temperature'], source: 'weather', model: weather.model || 'best_match', type: weather.type, run: async () => parseConditions(await rawJson('weather', url(weather.url, { ...dates, hourly: 'wind_speed_10m,wind_direction_10m,temperature_2m', wind_speed_unit: 'ms', ...(weather.model ? { models: weather.model } : {}) })), { wind_speed_10m: 'wind_speed', wind_direction_10m: 'wind_direction', temperature_2m: 'air_temperature' }) },
+      { fields: ['wind_speed','wind_direction','air_temperature'], source: 'weather', model: weather.model || 'best_match', type: weather.type, run: async () => parseConditions(await rawJson('weather', url(weather.url, { ...dates, hourly: 'wind_speed_10m,wind_direction_10m,temperature_2m', wind_speed_unit: 'kn', ...(weather.model ? { models: weather.model } : {}) })), { wind_speed_10m: 'wind_speed', wind_direction_10m: 'wind_direction', temperature_2m: 'air_temperature' }) },
     ]
     const responses = await Promise.allSettled(groups.map(g => g.run()))
     const values = {}, errors = [], hourly = []
@@ -82,8 +92,9 @@ export function fetchConditionSnapshot(session, spot, { fetcher = fetch, now = D
       const g = groups[i]
       const row = r.status === 'fulfilled' ? representative(r.value.filter(sample => g.fields.some(field => sample[field] != null)), session.started_at, session.ended_at) : null
       if (r.status === 'rejected') { errors.push(g.source + ': ' + r.reason.message); return }
-      hourly.push({ fields: g.fields, rows: r.value, raw_response: raw[['wave','sst','weather'][i]] || null, metadata: { provider: 'open-meteo', source: g.source, model: g.model, source_type: g.type, fetched_at: new Date(now).toISOString(), context: key } })
-      for (const field of g.fields) values[field] = { value: row?.[field] ?? null, sampled_at: row?.sampled_at ?? null, provider: 'open-meteo', source: g.source, model: g.model, source_type: g.type, fetched_at: row?.fetched_at || new Date(now).toISOString(), context: key }
+      const windMetadata=g.source==='weather' ? {wind_speed_unit:'m/s',response_unit:raw.weather.hourly_units.wind_speed_10m,requested_wind_speed_unit:'kn'} : {}
+      hourly.push({ fields: g.fields, rows: r.value, raw_response: raw[['wave','sst','weather'][i]] || null, metadata: { ...windMetadata,provider: 'open-meteo', source: g.source, model: g.model, source_type: g.type, fetched_at: new Date(now).toISOString(), context: key } })
+      for (const field of g.fields) values[field] = { ...(field==='wind_speed' ? {...windMetadata,unit:'m/s',source_value:row?.wind_speed_source_value ?? null,source_unit:row?.wind_speed_source_unit ?? null} : {}),value: row?.[field] ?? null, sampled_at: row?.sampled_at ?? null, provider: 'open-meteo', source: g.source, model: g.model, source_type: g.type, fetched_at: row?.fetched_at || new Date(now).toISOString(), context: key }
     })
     if (errors.length) cache.delete(key)
     return { values, errors, hourly }

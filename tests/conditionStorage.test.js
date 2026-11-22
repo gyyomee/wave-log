@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { forecastRange, forecastState } from '../src/journal/forecast.js'
 import { editTimestamp, timestampValues } from '../src/journal/timestampEdits.js'
 import { savedConditionRows } from '../src/journal/savedConditions.js'
+import { fromKnots, toKnots, windResolution } from '../src/lib/windUnits.js'
+import { sessionWind } from '../src/journal/statisticsModel.js'
 
 test('condition save preserves legacy values, hourly originals and separate interval/tide payloads (mocked)', async t => {
   let payload
@@ -59,4 +61,22 @@ test('condition save preserves legacy values, hourly originals and separate inte
   assert.equal(rows[2].values.wave_height,null)
   assert.equal(rows[1].values.wind_direction,44.7)
   assert.equal(payload._forecast,undefined)
+  for (const [name,wind,expected] of [
+    ['manual',{wind_speed:10,manual_fields:['wind_speed'],manual_origins:{wind_speed:{api:{value:4,unit:'m/s'}}}},fromKnots(10)],
+    ['api',{wind_speed:10,api_values:{wind_speed:{value:10,unit:'m/s'}}},10],
+    ['unknown',{wind_speed:10},null],
+  ]) {
+    const original=JSON.parse(JSON.stringify(wind))
+    await saveConditions(name,{...wind,context:ctx},{})
+    const once=await getConditions(name)
+    await saveConditions(name,once,{})
+    const twice=await getConditions(name)
+    assert.deepEqual(wind,original,'save must not mutate historical input')
+    assert.equal(windResolution(twice).value,expected)
+    assert.equal(twice.wind_speed,expected ?? 10,'unknown original must survive')
+    assert.deepEqual(twice.api_values,once.api_values,'no repeated conversion')
+    assert.deepEqual(twice.manual_origins,wind.manual_origins || {})
+    assert.equal(sessionWind({started_at:start,ended_at:end,conditions:twice}).value,expected)
+    if(name==='manual') assert.equal(toKnots(twice.wind_speed),10)
+  }
 })

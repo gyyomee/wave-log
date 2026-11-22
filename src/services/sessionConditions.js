@@ -1,6 +1,5 @@
 import { authenticatedClient, execute, result } from './dataAccess.js'
 import { conditionFields } from '../journal/conditionModel.js'
-import { cleanName } from '../journal/suggestions.js'
 import { serializeIntervals } from '../journal/intervals.js'
 import { serializeTides, tideCycle } from '../journal/tides.js'
 import { forecastRange, forecastState } from '../journal/forecast.js'
@@ -25,7 +24,7 @@ export function saveConditions(id, state, intent) {
     const { client } = await authenticatedClient()
     const fields = Object.fromEntries(Object.keys(conditionFields).map(k => [k, state[k] === '' || state[k] == null ? null : Number(state[k])]))
     return result(client.from('surf_session_conditions').upsert({
-      session_id: id, ...fields, wetsuit: cleanName(state.wetsuit) || null,
+      session_id: id, ...fields, wetsuit: state.wetsuit || null,
       api_values: state.api_values || {}, manual_fields: state.manual_fields || [], manual_origins: state.manual_origins || {},
       rating_intent: intent, context: state.context || '',
       condition_intervals: serializeIntervals(state.condition_intervals),

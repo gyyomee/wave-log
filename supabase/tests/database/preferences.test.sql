@@ -1,0 +1,40 @@
+-- Local/disposable database only. No real user records; all changes roll back.
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+select no_plan();
+insert into auth.users(id) values
+('00000000-0000-4000-8000-000000000071'),('00000000-0000-4000-8000-000000000072');
+insert into public.user_preferences(user_id,wind_speed_unit) values ('00000000-0000-4000-8000-000000000072','m/s');
+select ok((select relrowsecurity from pg_class where oid='public.user_preferences'::regclass),'RLS enabled');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000071',true);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000071","role":"authenticated"}',true);
+select is((select count(*) from public.user_preferences),0::bigint,'User A cannot read B preferences');
+insert into public.user_preferences(user_id) values ('00000000-0000-4000-8000-000000000071');
+select is((select wind_speed_unit from public.user_preferences),'kts','Own preference defaults to knots');
+update public.user_preferences set wind_speed_unit='m/s';
+select is((select wind_speed_unit from public.user_preferences),'m/s','Own preference updates');
+insert into public.user_preferences(user_id,wind_speed_unit) values ('00000000-0000-4000-8000-000000000071','kts')
+on conflict(user_id) do update set wind_speed_unit=excluded.wind_speed_unit;
+select is((select wind_speed_unit from public.user_preferences),'kts','Own preference upsert');
+with changed as (update public.user_preferences set wind_speed_unit='kts' where user_id='00000000-0000-4000-8000-000000000072' returning *) select is(count(*),0::bigint,'Cross-user update affects no rows') from changed;
+with removed as (delete from public.user_preferences where user_id='00000000-0000-4000-8000-000000000072' returning *) select is(count(*),0::bigint,'Cross-user delete affects no rows') from removed;
+select throws_ok($$insert into public.user_preferences(user_id) values ('00000000-0000-4000-8000-000000000072')$$,'42501',null,'Cannot insert another owner');
+select throws_ok($$update public.user_preferences set user_id='00000000-0000-4000-8000-000000000072'$$,'42501',null,'Cannot transfer ownership');
+select throws_ok($$update public.user_preferences set wind_speed_unit='mph'$$,'23514',null,'Reject unsupported units');
+select throws_ok($$update public.user_preferences set wind_speed_unit=null$$,'23502',null,'Reject null units');
+delete from public.user_preferences;
+select is((select count(*) from public.user_preferences),0::bigint,'Can delete own preferences');
+reset role;
+select is((select wind_speed_unit from public.user_preferences where user_id='00000000-0000-4000-8000-000000000072'),'m/s','B remains unchanged');
+set local role anon;
+select set_config('request.jwt.claim.sub','',true);
+select set_config('request.jwt.claims','{"role":"anon"}',true);
+select throws_ok($$select * from public.user_preferences$$,'42501',null,'Anonymous read denied');
+select throws_ok($$insert into public.user_preferences(user_id) values ('00000000-0000-4000-8000-000000000071')$$,'42501',null,'Anonymous insert denied');
+select throws_ok($$update public.user_preferences set wind_speed_unit='m/s'$$,'42501',null,'Anonymous update denied');
+select throws_ok($$delete from public.user_preferences$$,'42501',null,'Anonymous delete denied');
+reset role;
+select * from finish();
+rollback;

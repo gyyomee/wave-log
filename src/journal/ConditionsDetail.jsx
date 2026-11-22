@@ -1,6 +1,7 @@
 import { tideConventions } from './tides'
 import { conditionRecord, savedConditionRows } from './savedConditions'
 import SavedWaveTable from './SavedWaveTable'
+import { windAudit } from '../lib/windUnits'
 
 export default function ConditionsDetail({ session }) {
   const state=conditionRecord(session.conditions)
@@ -9,6 +10,7 @@ export default function ConditionsDetail({ session }) {
   return <>
     {session.conditionsError && <p role="alert">저장된 환경 정보를 불러오지 못했습니다. 목록을 새로 불러와 주세요.</p>}
     <SavedWaveTable rows={rows} />
+    {windAudit(state).length>0 && <p role="status">단위 확인이 필요한 풍속은 표시와 풍속 평균에서 제외됩니다.</p>}
     <dl className="details saved-extras"><dt>서핑 슈트</dt><dd>{state.wetsuit || '-'}</dd>
       <dt>물때</dt><dd>{state.tide_cycle_label || '-'}{state.tide_convention && ' · '+(tideConventions[state.tide_convention] || state.tide_convention)}</dd>
     </dl>

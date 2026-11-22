@@ -2,10 +2,12 @@ import { conditionFields } from './conditionModel.js'
 import { seoulParts } from './dates.js'
 import { forecastRange, forecastState } from './forecast.js'
 import { timestampValues } from './timestampEdits.js'
+import { normalizeWindRecord, windResolution } from '../lib/windUnits.js'
 
 export const savedFields = ['wave_height','wave_period','swell_direction','wind_speed','wind_direction','water_temperature','air_temperature']
 export function conditionRecord(value) { return (Array.isArray(value) ? value[0] : value) || {} }
 export function savedValue(row, key) {
+  if(key==='wind_speed') return windResolution(row).value
   const raw = Object.hasOwn(row,key) ? row[key] : row.manual_fields?.includes(key) ? null : row.api_values?.[key]?.value
   if (raw == null || (typeof raw==='string' && raw.trim()==='') || typeof raw === 'boolean') return null
   const n=Number(raw), spec=conditionFields[key]
@@ -24,14 +26,14 @@ function timeLabel(row) {
 }
 // Presentation only: never regenerate forecasts or mutate the stored record.
 export function savedConditionRows(session, input=session.conditions) {
-  const base=conditionRecord(input)
+  const base=normalizeWindRecord(conditionRecord(input))
   const modern=(base.condition_intervals || []).some(row=>row.id?.startsWith('forecast:') && row.forecast_at && row.manual_fields?.length)
   const legacyManual=(base.condition_intervals || []).some(row=>!row.id?.startsWith('forecast:') && row.manual_fields?.length)
   if(modern || (base.condition_hourly?.length && !legacyManual)) {
     const forecasts=forecastState(base,forecastRange(session.started_at,session.ended_at),base.context || '')._forecast
     if(forecasts.length) return forecasts.map(forecast=>{
       const row=timestampValues(base,forecast)
-      return {id:forecast.id,label:timeLabel(forecast),values:Object.fromEntries(savedFields.map(key=>[key,savedValue(row,key)])),estimates:savedFields.filter(key=>row[key]!=null && !row.manual_fields.includes(key) && row.api_values[key]?.value!=null)}
+      return {id:forecast.id,timestamp:forecast.forecast_at,label:timeLabel(forecast),values:Object.fromEntries(savedFields.map(key=>[key,savedValue(row,key)])),estimates:savedFields.filter(key=>row[key]!=null && !row.manual_fields.includes(key) && row.api_values[key]?.value!=null)}
     })
   }
   const intervals=(base.condition_intervals || []).filter(row=>{
@@ -50,7 +52,7 @@ export function savedConditionRows(session, input=session.conditions) {
       values[key]=savedValue(source,key)
       if(values[key]!=null && !source.manual_fields?.includes(key) && source.api_values?.[key]?.value!=null) estimates.push(key)
     }
-    return { id:row.id || 'session-'+index, label:row===base ? '전체' : timeLabel(row), values, estimates }
+    return { id:row.id || 'session-'+index, timestamp:row===base ? null : row.forecast_at || row.started_at, label:row===base ? '전체' : timeLabel(row), values, estimates }
   })
   // Keep an independently recorded session value if timestamped edits differ.
   if(candidates.length && savedFields.some(key=>base.manual_fields?.includes(key) && rows.some(row=>row.values[key]!==savedValue(base,key)))) {

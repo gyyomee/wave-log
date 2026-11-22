@@ -4,6 +4,7 @@ import { isAutomaticInterval, retainedInputs, relevantHourly } from '../src/jour
 import { forecastRange, forecastState } from '../src/journal/forecast.js'
 import { journalSaver } from '../src/services/journalSave.js'
 import { relevantMarine } from '../src/services/relevantMarine.js'
+import { toKnots } from '../src/lib/windUnits.js'
 const start='2026-10-01T08:00:00+09:00', end='2026-10-01T14:00:00+09:00'
 const ctx=JSON.stringify([37,129,start,end])
 test('only proven automatic interval rows are removed; manual nulls and ambiguous records survive',()=>{
@@ -21,7 +22,7 @@ test('changing time removes old auto values and sources but preserves explicit s
   const nextCtx=JSON.stringify([37,129,'2026-10-02T08:00:00+09:00','2026-10-02T14:00:00+09:00'])
   const next=forecastState(state,forecastRange('2026-10-02T08:00:00+09:00','2026-10-02T14:00:00+09:00'),nextCtx)
   assert.equal(next.wave_height,null)
-  assert.equal(next.wind_speed,4)
+  assert.equal(toKnots(next.wind_speed),4)
   assert.deepEqual(next.condition_hourly,[])
   assert.deepEqual(next.condition_intervals,[])
   assert.ok(next._forecast.every(row=>row.wave_height===null))

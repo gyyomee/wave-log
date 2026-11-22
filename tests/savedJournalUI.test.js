@@ -15,7 +15,7 @@ test('saved detail has one clean conditions table and calendar distinguishes sam
     assert.equal((html.match(/<h3>파도 정보<\/h3>/g)||[]).length,1)
     for(const text of ['세션 환경값','보존된 개별 입력','internal-model','archived_forecast','너울 높이','너울 주기','직접 수정','원본 API']) assert.ok(!html.includes(text),text)
     for(const text of ['0.8m','9s','스웰 방향','rotate(270deg)','rotate(0deg)','4/3mm','조금','10:30','120cm']) assert.ok(html.includes(text),text)
-    assert.ok(html.includes('예측값이 포함'))
+    assert.ok(html.includes('단위 확인이 필요한 풍속'))
     const second={...session,id:'second',started_at:'2026-11-01T03:00:00Z',conditions:{wave_height:null,wave_period:7}}
     const calendar=renderToStaticMarkup(React.createElement(Calendar,{month:'2026-11',sessions:[session,second],date:'2026-11-01',today:'2026-11-01',onDateChange(){}}))
     for(const text of ['만리포해수욕장','09:00','12:00','파고','주기','2회']) assert.ok(!calendar.includes(text),text)
@@ -25,7 +25,8 @@ test('saved detail has one clean conditions table and calendar distinguishes sam
     const journal=readFileSync(new URL('../src/journal/Journal.jsx',import.meta.url),'utf8')
     assert.ok(journal.indexOf('<CalendarView')<journal.indexOf('<Rows sessions={daily}'))
     assert.match(journal,/onDateChange={setDate}/)
-    assert.match(journal,/수정<\/button>.*삭제.*목록으로<\/button>/)
+    assert.match(journal,/수정<\/button>.*삭제/)
+    assert.doesNotMatch(journal,/목록으로|마이페이지로/)
     assert.match(journal,/window.confirm/)
     assert.ok(!calendar.includes('5/5'))
     assert.ok(!readFileSync(new URL('../src/journal/Journal.jsx',import.meta.url),'utf8').includes('<MarineConditions'))

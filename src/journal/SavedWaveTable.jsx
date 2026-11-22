@@ -1,10 +1,14 @@
 import { conditionFields } from './conditionModel'
 import { directionLabel, travelRotation } from './directions'
 import { savedFields, formatSaved } from './savedConditions'
+import { formatWind } from '../lib/windUnits'
+import { usePreferences } from '../preferences/PreferencesContext'
 
 export function SavedValue({ field, value }) {
+  const {unit}=usePreferences()
   const spec=conditionFields[field]
   if(value==null) return '-'
+  if(field==='wind_speed') return formatWind(value,unit)
   if(!spec.direction) return formatSaved(value,spec.unit)
   return <span className="saved-direction"><span className="direction-arrow" aria-hidden="true" style={{transform:'rotate('+travelRotation(value)+'deg)'}}>↑</span><span>{directionLabel(value)} {value}°</span></span>
 }

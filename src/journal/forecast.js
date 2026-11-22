@@ -1,5 +1,6 @@
 import { contextKey, conditionFields } from './conditionModel.js'
 import { retainedInputs, relevantHourly, resetAutomaticValues, unresolvedSources } from './conditionPersistence.js'
+import { apiWind, markWindStorage, normalizeWindRecord } from '../lib/windUnits.js'
 const hour = 3600000, step = 3 * hour, offset = 9 * hour
 export function forecastRange(start, end) {
   const a = Date.parse(start), b = Date.parse(end)
@@ -15,6 +16,7 @@ export function forecastRange(start, end) {
   return rows
 }
 export function forecastState(state, ranges, ctx) {
+  state=normalizeWindRecord(state)
   const condition_hourly=relevantHourly(state.condition_hourly,ranges,ctx)
   const forecast=ranges.map(range=>{
     const row={...range,api_values:{}}
@@ -23,12 +25,12 @@ export function forecastState(state, ranges, ctx) {
       const sample=group.rows.find(item=>Date.parse(item.sampled_at)===Date.parse(range.forecast_at))
       if(!sample) continue
       for(const key of group.fields) {
-        const spec=conditionFields[key], value=sample[key]
+        const spec=conditionFields[key], normalized=key==='wind_speed' ? apiWind(sample[key],group.metadata,sample.wind_speed_review) : null, value=normalized ? normalized.value : sample[key]
         row[key]=typeof value==='number' && value>=spec.min && value<=spec.max ? value : null
-        row.api_values[key]={...group.metadata,value:row[key],sampled_at:sample.sampled_at}
+        row.api_values[key]={...group.metadata,...normalized,value:row[key],sampled_at:sample.sampled_at}
       }
     }
-    return row
+    return markWindStorage(row,'exact-hourly-sample')
   })
   return {...resetAutomaticValues(state,ctx),context:ctx,condition_intervals:retainedInputs(state.condition_intervals),condition_hourly:[...unresolvedSources(state.condition_hourly),...condition_hourly],_forecast:forecast}
 }

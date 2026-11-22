@@ -1,7 +1,9 @@
 import { conditionFields } from './conditionModel.js'
+import { apiWind, hourlyWindMetadata, windNeedsReview } from '../lib/windUnits.js'
 const keys = Object.keys(conditionFields)
 const intervalKeys=new Set([...keys,'id','forecast_at','started_at','ended_at','api_values','manual_fields','manual_origins','context'])
 export function isAutomaticInterval(row) {
+  if(windNeedsReview(row)) return false
   if(Object.keys(row).some(key=>!intervalKeys.has(key))) return false
   if (row.manual_fields?.length || Object.keys(row.manual_origins || {}).length) return false
   if (!/^(forecast:)?\d{4}-\d{2}-\d{2}T/.test(row.id || '')) return false
@@ -44,7 +46,7 @@ export function relevantHourly(groups, ranges, ctx) {
         const id=key+':'+time, old=samples.get(id)
         if (old && Date.parse(old.metadata.fetched_at)>Date.parse(group.metadata.fetched_at)) continue
         const originalExtras=Object.fromEntries(Object.entries(row).filter(([name])=>!keys.includes(name)))
-        samples.set(id,{fields:[key],rows:[{...originalExtras,[key]:row[key] ?? null}],metadata:{...group.metadata}})
+        samples.set(id,{fields:[key],rows:[{...originalExtras,[key]:row[key] ?? null}],metadata:{...hourlyWindMetadata(group)}})
       }
     }
   }
@@ -65,9 +67,14 @@ export function resetAutomaticValues(state, selection) {
   const changed=(state._selection || state.context) !== selection
   if (changed) {
     next.api_values={}
+    // Selection changes must not erase the unit tag of preserved manual data.
+    if(state.api_values?._wind_speed_storage) next.api_values._wind_speed_storage=state.api_values._wind_speed_storage
+    if(state.api_values?._wind_speed_review) next.api_values._wind_speed_review=state.api_values._wind_speed_review
+    if(windNeedsReview(state) && state.api_values?.wind_speed) next.api_values.wind_speed=state.api_values.wind_speed
     for (const key of keys) {
+      if(key==='wind_speed' && windNeedsReview(state)) continue
       if (state.manual_fields?.includes(key)) continue
-      const value=state[key], api=state.api_values?.[key]
+      const value=state[key], source=state.api_values?.[key], api=key==='wind_speed' && source ? apiWind(source.value,source) : source
       if (value == null || value === '' || (api?.value != null && Number(value)===Number(api.value))) next[key]=null
       else {
         // Legacy values without trustworthy provenance are user data until reviewed.
@@ -83,7 +90,10 @@ export function sessionValues(groups,start,end) {
     const candidates=(groups || []).flatMap(group=>group.fields.includes(key) ? group.rows.filter(row=>row[key]!=null && Date.parse(row.sampled_at)>=Date.parse(start) && Date.parse(row.sampled_at)<Date.parse(end)).map(row=>({row,metadata:group.metadata})) : [])
     candidates.sort((a,b)=>Math.abs(Date.parse(a.row.sampled_at)-midpoint)-Math.abs(Date.parse(b.row.sampled_at)-midpoint) || Date.parse(a.row.sampled_at)-Date.parse(b.row.sampled_at))
     const chosen=candidates[0]
-    if(chosen) values[key]={...chosen.metadata,value:chosen.row[key],sampled_at:chosen.row.sampled_at}
+    if(chosen) {
+      const normalized=key==='wind_speed' ? apiWind(chosen.row[key],chosen.metadata,chosen.row.wind_speed_review) : {}
+      values[key]={...chosen.metadata,value:chosen.row[key],...normalized,sampled_at:chosen.row.sampled_at}
+    }
   }
   return values
 }

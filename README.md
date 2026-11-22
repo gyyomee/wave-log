@@ -1,5 +1,116 @@
 # Wave Log
 
+## Journal Cleanup And Personal Equipment (Current)
+
+This section supersedes the My Page/inspection UI described below. The redundant "마이페이지로" and journal-detail "목록으로" buttons are removed. Detail actions are Edit/Delete, with delete confirmation preserved. Top-level Calendar/My Page navigation and browser Back/Forward use the existing app without React Router or new URL paths. My Page now contains Statistics, My Equipment, Preferences and Logout. Statistics no longer displays the wind inspection inventory, review table, download or correction actions. Internal unit/provenance validation still excludes unresolved wind values; regular wind statistics and the chosen kts/m/s display remain unchanged.
+
+### Session Date And Time
+
+The selected calendar date is non-editable context. Only the 24-hour start/end wheel inputs remain. An earlier end clock means the following Seoul day and shows "익일". Equal clocks are rejected for new sessions. Editing uses the existing session start date, not today. Unchanged historical timestamp strings (including seconds/milliseconds) are preserved. Existing sessions lasting 24 hours or more retain their original end date when editing; a multi-day end date is shown explicitly rather than being silently collapsed. Tide-event dates remain editable and are unrelated to the removed session-date inputs.
+
+### Equipment Storage And Saving
+
+Migration: `supabase/migrations/20261122010000_user_equipment.sql`. `public.user_equipment` stores `id`, authenticated `user_id`, `equipment_type` (`surfboard`/`wetsuit`), display name, generated normalized name, active flag and timestamps. SELECT/INSERT/UPDATE RLS restrict access to the owner; hard DELETE is not granted. A database unique constraint covers owner/type/normalized name across active and archived rows, preventing concurrent duplicates. Explicitly adding an archived name reactivates that entry instead of creating another one.
+
+The additive migration imports distinct historical `surf_sessions.board_name` and `surf_session_conditions.wetsuit` values into the collection. NFC, collapsed whitespace and lowercase identity deduplicate names; the earliest matching spelling is chosen deterministically for the collection. No journal text, timestamps, ratings, environmental samples or authentication records are updated. Empty or normalized names longer than 200 characters are not imported and remain untouched in the historical journal. No sample boards/suits are seeded as user equipment.
+
+My Equipment supports add, rename and removal from the active list (archive). Renaming/archive never rewrites journal snapshots and never deletes a session. Unchanged historical gear is not re-registered during unrelated journal edits, so archived/renamed gear does not reappear just because an old journal is saved. Historical board and suit strings are kept exactly when their inputs were not edited. Active collection items are the selectable source after migration; old names are backfilled once, not repeatedly re-imported after archive.
+
+The journal uses custom accessible comboboxes instead of native `datalist` (whose suggestion affordance was unreliable on mobile). Focus or the visible arrow opens all active options before typing. Filtering, scrolling/tap selection, Arrow/Enter selection, Escape/Tab dismissal and keyboard-aware placement are supported. The wetsuit field stays immediately below the board. Typing alone does not write equipment. After the session and conditions both save successfully, `register_my_equipment` registers the entered pair atomically as the authenticated user; normalized uniqueness makes retries/concurrent registration idempotent. If journal/conditions saving fails, equipment registration is not called. If registration itself fails, the journal has already saved: the form says so and a retry updates the same journal ID and retries equipment registration. No frontend service-role key or new dependency is used.
+
+### Deployment And Verification
+
+The new migration has **not** been applied to the remote project. Until applied, the app reports that equipment cannot be loaded; new equipment-bearing saves are blocked before writing a journal when the collection is unavailable. Existing unchanged gear snapshots can still be saved. Apply only after reviewing pending migrations and taking a database backup:
+
+```sh
+cd /Volumes/GAYOMEE/wave-log
+npx supabase link --project-ref mtfbtokzodgmppcmbghu
+npx supabase migration list --linked
+npx supabase db push --linked --dry-run
+# Review the pending list, then explicitly apply:
+npx supabase db push --linked
+npx supabase migration list --linked
+```
+
+Check that `20261122010000` appears in both Local/Remote, inspect `user_equipment` and its owner-only policies, then reload. My Page > My Equipment should show historical distinct names. Test adding, renaming and archiving a disposable new equipment item; old journal details must retain their original names. For a new disposable journal, confirm new names appear only after successful save. Verify the same collection on another device after reload. No additional API credentials, Kakao changes, Edge Function deployment or Pages configuration changes are needed. Publish the frontend separately through the existing GitHub Pages workflow when approved. Nothing was committed, pushed or deployed automatically.
+
+Validation: **94 JavaScript tests passed**, **92 pgTAP checks passed** against the local Supabase PostgreSQL container (including 22 equipment checks), plus **5 actual migration/backfill checks passed**. All SQL fixtures and temporary migrations were transactionally rolled back. The production build passed with the existing non-blocking mixed Supabase import warning. `tests/verifyEquipmentMigration.mjs` can replay the backfill checks against the local `supabase_db_wave-log` container before the equipment migration is installed; it refuses to reset an already-migrated database. For a disposable fully migrated local database, run `npx supabase test db`; no production test writes were performed.
+
+Browser checks covered real read-only navigation/detail pages and the time-only creation form, plus the isolated `/wave-log/tests/browser/equipment.html` fixture for mobile dropdown scrolling/selection/search/keyboard dismissal, fake save-failure/retry registration and rename. Fixtures use only in-memory test gear, not Supabase. Real iOS keyboard/touch behavior, remote equipment writes and cross-device synchronization await manual deployment/testing. Collection changes load on sign-in/reload, not realtime. The existing multi-request journal save remains non-transactional; equipment registration occurs only after it succeeds and is independently atomic.
+
+Added files: `src/equipment/{EquipmentContext,EquipmentInput,EquipmentManager}.jsx`, `src/equipment/equipmentModel.js`, `src/services/equipment.js`, `src/journal/{sessionTimes,useJournalRoute}.js`, the equipment migration and `supabase/tests/database/equipment.test.sql`, `tests/equipment.test.js`, `tests/verifyEquipmentMigration.mjs`, and `tests/browser/equipment.{html,jsx}`. Updated App, MyPage, Journal, SessionForm, useConditions, Statistics, ConditionsDetail, journal CSS, journalSave/sessionConditions services and regression tests. Removed the unused user-facing `WindReviewAction.jsx`; historical interpretation helpers and source metadata are retained. Previous uncommitted work remains intact.
+
+## My Page And Account Preferences (Current)
+
+This supersedes the fixed-kts UI and top-level Statistics navigation below. Main navigation is Calendar / My Page. My Page retains the Kakao nickname and logout, and opens the existing Statistics dashboard or Preferences. Calendar cells, authentication, Pages base path, tide inputs and existing journals are unchanged.
+
+### Account-specific wind units
+
+`public.user_preferences` is a minimal settings table, not a profile/authentication table. Its primary key is `auth.users.id`; `wind_speed_unit` is `kts` (default) or `m/s`. Separate SELECT/INSERT/UPDATE/DELETE RLS policies and grants restrict records to their owner. The new additive migration is `supabase/migrations/20261122000000_user_preferences.sql`. No existing record is backfilled, converted or deleted.
+
+Preferences load on sign-in and are shared by the form, saved conditions, timestamp table and Statistics through an account-keyed provider. No global localStorage preference is used. Selecting a unit saves immediately, with saving/success/error feedback. Failed initial reads use kts without writing a default; controls stay disabled until a successful retry. Failed saves restore the last unit. In-flight results cannot cross account boundaries. Other already-open devices pick up changes on sign-in/reload; realtime cross-device notifications are not implemented.
+
+Canonical effective storage and calculations remain **m/s**. `windToDisplay`, `windFromInput`, and `formatWind` in `src/lib/windUnits.js` are the shared boundary for current UI and future Phase 8. A preference change never edits condition state, original samples, or journals, and never triggers an Open-Meteo request. Saved display/statistics round to one decimal; editable inputs show up to six decimals while the unrounded canonical value remains untouched until the user actually edits that field. The editor also provides the same unit control so unsaved timestamp edits survive switching. API reset values remain canonical internally and are converted only at display.
+
+Open-Meteo remains explicitly requested with `wind_speed_unit=kn`, independently of display preference. The response must declare `kn`/`kts` in `hourly_units.wind_speed_10m`. Incoming values normalize once; original source values/units and caches remain intact. Earlier ms requests are differentiated from explicit response-unit evidence. See [official weather API documentation](https://open-meteo.com/en/docs).
+
+### Historical review
+
+Statistics includes a read-only wind inventory: historical manual flags (interpreted as kts by the owner's instruction), explicit API unit evidence, code-derived legacy m/s evidence, user-reviewed units, tagged canonical values, and unresolved units. Counts include scalar/interval values and raw hourly samples, not just unique sessions; they should not be interpreted as independent observations. A manual flag alone cannot distinguish old restore-button use from typed input. Code-derived API units are not claimed to be recovered response metadata.
+
+Unresolved values stay out of wind-dependent statistics. For each unresolved value, select its original unit and explicitly confirm. Only interpretation metadata is saved: `_wind_speed_review` in scalar/interval `api_values`, or `wind_speed_review` on an hourly JSON sample. The original number and API unit are not overwritten. Reviews bind to the original number, path and timestamp; an `updated_at` compare-and-swap rejects concurrent changes. This uses existing conditions RLS, not an admin key or a new journal table. A later explicit journal save may normalize effective scalar/interval values with the existing `_wind_speed_storage` marker; raw hourly numbers remain unchanged. Review is not a bulk conversion tool. Back up the affected conditions row before correcting historical data. To reverse an erroneous confirmation, restore its reviewed JSON field from that backup after checking for newer edits; no automatic destructive undo is provided.
+
+Read-only inspection on 2026-11-22 of the signed-in account's 6 loaded sessions found **7 manual-flagged values, 0 API values with explicit unit metadata, 30 API values classified from historical ms-request code, 0 unresolved, 0 user-reviewed, and 0 other tagged values**. This is not an audit of every Supabase user, and does not prove that all seven manual flags originated in typing rather than old reset controls. No journal or preference was written to the remote project during validation.
+
+### Apply And Verify
+
+The new settings migration has **not** been applied remotely. Until it is applied, settings load failures are expected; the calendar and journal continue using the safe default. Review pending migrations before any push:
+
+```sh
+cd /Volumes/GAYOMEE/wave-log
+npx supabase link --project-ref mtfbtokzodgmppcmbghu
+npx supabase migration list --linked
+npx supabase db push --linked --dry-run
+# Only after confirming the pending list and taking a backup:
+npx supabase db push --linked
+npx supabase migration list --linked
+```
+
+Expect `20261122000000` in both Local and Remote. Open `user_preferences` in the Dashboard table editor and inspect its RLS policy view for the four owner-only policies. No Kakao/OAuth/API-secret changes are needed. Reload the app, open My Page > Preferences, select m/s, and confirm the saved message. Reload or sign into the same account on another device to check persistence. Another account without a settings row must still default to kts. Confirm that 10 kts displays as approximately 5.1 m/s without changing journal data or statistics sample counts. Publish the frontend separately through the existing GitHub Pages workflow when approved; nothing is auto-committed or deployed.
+
+For a disposable local Supabase database, use `npx supabase migration up --local` then `npx supabase test db`. Do not reset a populated database to run tests. During this task the new migration and its pgTAP file were executed together inside a transaction against the existing local Supabase PostgreSQL container: **17 RLS/constraint checks passed and the entire transaction was rolled back**. No local or remote persistent migration was performed. [Supabase CLI reference](https://supabase.com/docs/reference/cli/supabase-migration-up).
+
+`npm test` covers preference lifecycle/races, account isolation in service calls, conversion, ambiguous review metadata/concurrency, timestamp input/reset/reload and consistent UI units. `npm run build` uses the unchanged Pages configuration. The optional dev-only `/wave-log/tests/browser/windPreferences.html` fixture uses two in-memory fake accounts and no data/weather requests for browser interaction checks; it is not included in the production build and resets on reload. Real cross-device preference persistence and remote review writes must be tested after manual deployment, not claimed from the fixture.
+
+Final validation: **87 JavaScript tests passed**, **70 local pgTAP assertions passed** across all five SQL test files (including 17 new preferences checks), and the production build succeeded. Pending local migrations were prepended inside each test transaction, with all DDL and fixtures rolled back. `supabase test db` was not the runner for these checks; they used psql against the local Supabase container to avoid permanently applying pending local migrations. The existing non-blocking mixed static/dynamic Supabase import warning remains. Browser checks covered My Page navigation, the safe missing-migration state, 375px/desktop layout, fake-account persistence/isolation, keyboard unit switching and editable values. Reset logic was verified by automated tests; a browser confirmation-dialog automation limitation prevented completing the reset click interactively. Actual physical-device touch gestures and real cross-device writes remain untested.
+
+New files: `src/preferences/{MyPage,PreferencesContext,WindUnitControl,WindReviewAction}.jsx`, `src/preferences/preferenceStore.js`, `src/services/{userPreferences,windReview}.js`, `src/lib/windReview.js`, the migration/RLS test above, `tests/preferences.test.js`, `tests/preferencesUI.test.js`, `tests/windReview.test.js`, and `tests/browser/windPreferences.{html,jsx}`. Updated: App, Journal, Statistics/statisticsModel, ConditionsEditor, SavedWaveTable, windUnits, conditionModel/conditionPersistence/forecast, journal CSS, existing UI tests and this README. Earlier uncommitted wind/statistics work is preserved.
+
+## Wind Units And Phase 7 Statistics (Current)
+
+User-facing wind input, saved detail and statistics use **kts**. Internal effective values and new writes to `surf_session_conditions.wind_speed` and timestamp edits use **m/s**, retaining existing database bounds. Conversion is exact: 1 kt = 1852/3600 m/s. Historical raw JSON API samples are not rewritten just to display them.
+
+### Historical evidence and preservation
+
+- The original and pre-change `conditionApi.js` explicitly requested `wind_speed_unit=ms` for both forecast and archive weather. Its old response validator checked m/s only when `hourly_units` existed. A public-coordinate live API probe confirmed ms returns m/s and kn returns kn. See [Open-Meteo unit documentation](https://open-meteo.com/en/docs).
+- Historical `manual_fields` identifying wind mean the original number was entered in knots, per the owner's clarification. A manual 10 stays **10 kts** on screen, not 19.44. It becomes 5.144444... m/s only in the normalized model and on an explicit save. Original numbers and units are retained in JSON metadata.
+- API values with explicit units use those units. Older compacted snapshots often lost `hourly_units`: only a complete recognized legacy Open-Meteo weather signature (provider, model, source type, fetch timestamp and session context) uses the old ms request code as evidence. This is **code-derived inference, not recovered response metadata**. Similar-looking numbers are never unit evidence. Incomplete, contradictory or invalid records are flagged rather than guessed.
+- Historical manual flags cannot prove whether the user typed a value or used an old restore control that also set that flag. Manual flags follow the owner's manual=kts convention; numerical equality with API values does not override it. Review such known restore cases with the owner before any correction.
+- `api_values._wind_speed_storage` version 1 tags canonical m/s or unknown, with the normalization reason and original number/unit where present. The same marker is used inside `condition_intervals`. It prevents double conversion. `manual_origins`, original `api_values.wind_speed`, and raw hourly values remain intact. An unknown value is retained but not presented as a known wind speed or used in wind statistics.
+- Future forecast/archive requests explicitly use `wind_speed_unit=kn` and require a compatible `hourly_units.wind_speed_10m`. Parsed values normalize once to m/s; `wind_speed_source_value`, `wind_speed_source_unit`, `response_unit`, and `requested_wind_speed_unit` retain the received value and unit through source compaction.
+
+No bulk conversion, new schema, migration, or Edge Function deployment is required. Reads, statistics and review export never write to Supabase. Only a user's explicit journal save persists normalized effective values and markers through the existing conditions upsert. No production write test or remote migration was executed. Back up `surf_session_conditions` before editing historical records; keep that backup with the old app version. Rolling back to an old client after tagged saves requires a reviewed restoration, since old clients cannot understand the new marker. Close/reload older tabs when publishing this version.
+
+### Statistics and review
+
+The Statistics tab shares the existing authenticated session/conditions query. It supports Seoul start-date and spot filters, record/day/hour totals, optional rating means, and monthly, spot and whitespace-normalized board summaries. No additional table, dependency, recommendation algorithm or API is involved.
+
+Wind contributes at most one value per session: the saved effective clock point nearest the session midpoint, with earlier timestamp winning ties. A legacy session-wide manual baseline has midpoint priority. Candidates are limited to the existing displayed forecast range; no interpolation or missing-value substitution is performed. The mean weights sessions equally, not hourly sample counts. Any unresolved unit in a session's stored wind provenance excludes that session's wind only, not its ratings/counts. Missing wind is separate from unresolved wind. Future Phase 8 code must consume `sessionWind`/`windResolution`, never average raw stored `wind_speed` numbers.
+
+Unresolved values appear under "풍속 단위 확인 대상" with a record link and downloadable local JSON list (record ID, date, spot, path, original number and reason). This is a read-only report for manual review, not a conversion script. The current browser inspection covers only the signed-in account's loaded records, not every database user.
+
+Validate with `npm test` and `npm run build`. Publish only when approved via the unchanged GitHub Pages workflow. Mocked service roundtrips test persistence without touching real records. Mobile layout keeps tables horizontally scrollable, condition row labels compact, and reset controls beside their inputs. Earlier validation counts below describe previous phases, not this update.
+
 ## Session Conditions Persistence (Current)
 
 This supersedes the historical interval descriptions below. Forecast clock points are derived UI data (`_forecast`). The single editable wave-information table stores only explicit timestamp edits, not automatically generated interval entries. One `surf_sessions` row represents one surf; one `surf_session_conditions` row contains its environment, wetsuit and optional tides.

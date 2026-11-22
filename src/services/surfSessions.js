@@ -2,7 +2,7 @@ import { authenticatedClient, execute, pickFields, result, timestamp, DataAccess
 
 const fields = ['spot_id', 'started_at', 'ended_at', 'board_name', 'board_length_ft', 'overall_rating', 'wave_rating', 'performance_rating', 'crowd_level', 'notes']
 const withSpot = '*, spot:surf_spots!surf_sessions_owned_spot_fkey(*)'
-const savedConditions = 'conditions:surf_session_conditions(wave_height,wave_period,swell_direction,wind_speed,wind_direction,water_temperature,air_temperature,manual_fields,api_values,condition_intervals,condition_hourly,context,wetsuit,tide_cycle_label,tide_convention,tide_events)'
+const savedConditions = 'conditions:surf_session_conditions(wave_height,wave_period,swell_direction,wind_speed,wind_direction,water_temperature,air_temperature,manual_fields,manual_origins,api_values,condition_intervals,condition_hourly,context,wetsuit,tide_cycle_label,tide_convention,tide_events)'
 
 function values(input) {
   const record = pickFields(input, fields)

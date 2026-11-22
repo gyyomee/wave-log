@@ -118,6 +118,46 @@
 .details dd { margin: 0; }
 .notes { white-space: pre-wrap; line-height: 1.7; padding: 20px 0; border-top: 1px solid #d5dfdb; }
 .journal-content .form-message { margin-bottom: 20px; }
+.statistics-filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+.statistics-filters label { display: grid; gap: 8px; min-width: 0; }
+.statistics-filters input, .statistics-filters select { max-width: 100%; min-width: 0; }
+.statistics-summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 24px 16px; margin: 24px 0; }
+.statistics-summary dt { font-size: 14px; color: #62716b; }
+.statistics-summary dd { margin: 8px 0 0; font-size: 22px; }
+.statistics-section { border-top: 1px solid #d5dfdb; padding-top: 16px; margin-top: 24px; }
+.statistics-table { min-width: 520px; }
+.statistics-table small { display: block; }
+.mypage-menu { display: grid; max-width: 560px; border-top: 1px solid #d5dfdb; }
+.mypage-menu button { display: flex; justify-content: space-between; text-align: left; border: 0; border-bottom: 1px solid #d5dfdb; border-radius: 0; padding: 18px 8px; background: transparent; }
+.wind-unit-control { max-width: 560px; min-width: 0; }
+.wind-unit-control fieldset, .journal-form .wind-unit-control fieldset { border: 0; margin: 0; padding: 0; display: block; min-width: 0; }
+.wind-unit-control legend { margin-bottom: 10px; }
+.unit-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.unit-options label, .journal-form .unit-options label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 12px; border: 1px solid #bdccc5; border-radius: 6px; cursor: pointer; }
+.unit-options input, .journal-form .unit-options input { width: 18px; height: 18px; accent-color: #23654e; }
+.unit-options label:has(input:checked) { background: #e0eee5; border-color: #23654e; }
+.wind-unit-control p { font-size: 14px; overflow-wrap: anywhere; }
+.equipment-input { position: relative; min-width: 0; display: grid; gap: 8px; }
+.equipment-input-row { display: grid; grid-template-columns: minmax(0,1fr) 44px; gap: 8px; }
+.equipment-input-row button { padding: 0; font-size: 24px; }
+.equipment-popover { position: absolute; top: 100%; left: 0; right: 0; z-index: 20; background: white; border: 1px solid #bdccc5; border-radius: 6px; box-shadow: 0 4px 12px #20353118; }
+.equipment-popover.above { top: auto; bottom: 100%; }
+.equipment-popover ul { margin: 0; padding: 0; list-style: none; max-height: min(220px,30dvh); overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; }
+.equipment-popover li { min-height: 44px; padding: 12px; cursor: pointer; overflow-wrap: anywhere; }
+.equipment-popover li:hover, .equipment-popover li[aria-selected="true"] { background: #e0eee5; }
+.equipment-popover p { margin: 0; padding: 12px; font-size: 14px; }
+.equipment-group { border-top: 1px solid #d5dfdb; margin-top: 24px; padding-top: 12px; }
+.equipment-add { display: flex; align-items: end; gap: 8px; max-width: 560px; }
+.equipment-add label { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.equipment-add input, .equipment-list input { width: 100%; min-width: 0; }
+.equipment-list { list-style: none; padding: 0; }
+.equipment-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0; border-bottom: 1px solid #d5dfdb; }
+.equipment-list li > span { overflow-wrap: anywhere; min-width: 0; flex: 1 1 160px; }
+.equipment-list form { width: 100%; }
+.equipment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.equipment-list form .equipment-actions { margin-top: 8px; }
+.session-date { margin: 0; font-weight: 600; }
+.overnight { font-size: 13px; color: #62716b; }
 @media(max-width: 600px) {
   .journal-shell { padding: 16px; }
   .journal-header { flex-direction: column; gap: 8px; }
@@ -126,4 +166,7 @@
   .session-list li button { grid-template-columns: 1fr 1fr; gap: 12px; }
   .session-list li button > span:last-child { grid-column: 2; }
   .form-grid { grid-template-columns: 1fr; }
+  .condition-edit-table th:first-child { width: 80px; }
+  .statistics-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .statistics-filters label { width: 100%; }
 }

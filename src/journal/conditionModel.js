@@ -1,12 +1,13 @@
 import { coordinates } from '../services/marineApi.js'
 import { cleanName, nameKey } from './suggestions.js'
+import { markWindStorage, normalizeWindRecord, windNeedsReview } from '../lib/windUnits.js'
 export const conditionFields = {
   wave_height: { label: '파고', unit: 'm', min: 0, max: 50 },
   wave_period: { label: '파도 주기', unit: 's', min: 0, max: 100 },
   swell_height: { label: '너울 높이', unit: 'm', min: 0, max: 50 },
   swell_period: { label: '너울 주기', unit: 's', min: 0, max: 100 },
   swell_direction: { label: '너울 방향', unit: '°', min: 0, max: 360, direction: true },
-  wind_speed: { label: '풍속', unit: 'm/s', min: 0, max: 150 },
+  wind_speed: { label: '풍속', unit: 'm/s', displayUnit: 'kts', min: 0, max: 150 },
   wind_direction: { label: '풍향', unit: '°', min: 0, max: 360, direction: true },
   water_temperature: { label: '수온', unit: '°C', min: -10, max: 50 },
   air_temperature: { label: '기온', unit: '°C', min: -100, max: 70 },
@@ -28,11 +29,17 @@ export function contextKey(spot, start, end) {
   return JSON.stringify([Number(spot.latitude), Number(spot.longitude), new Date(start).toISOString(), new Date(end).toISOString()])
 }
 export function mergePrefill(state, incoming, context) {
+  state=normalizeWindRecord(state)
   const next = { ...state, api_values: { ...(state.api_values || {}), ...incoming }, context }
-  for (const key of Object.keys(incoming)) if (!state.manual_fields?.includes(key)) next[key] = incoming[key]?.value ?? null
+  if(windNeedsReview(state)) next.api_values.wind_speed=state.api_values?.wind_speed
+  for (const key of Object.keys(incoming)) if (!state.manual_fields?.includes(key) && !(key==='wind_speed' && windNeedsReview(state))) {
+    next[key] = incoming[key]?.value ?? null
+    if(key==='wind_speed') next.api_values=markWindStorage(next,'api-prefill').api_values
+  }
   return next
 }
 export function changeCondition(state, key, value) {
+  if(key==='wind_speed') state=markWindStorage(normalizeWindRecord(state),'manual-canonical-input')
   return { ...state, [key]: value, manual_fields: [...new Set([...(state.manual_fields || []), key])],
     manual_origins: { ...state.manual_origins, [key]: state.manual_origins?.[key] || { api: state.api_values?.[key] || null, context: state.context || '', edited_at: new Date().toISOString() } } }
 }
